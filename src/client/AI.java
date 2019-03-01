@@ -7,6 +7,7 @@ import java.util.Random;
 public class AI
 {
 
+
     private Random random = new Random();
     public int[][] go;
     int[] dx = {0, 0, 1, -1};
@@ -36,7 +37,7 @@ public class AI
     {
         System.out.println("pick started");
         System.out.println(world.getCurrentTurn());
-        if (world.getCurrentTurn() < 3)
+        if (world.getCurrentTurn() < 4)
             world.pickHero(HeroName.BLASTER);
         else
             world.pickHero(HeroName.SENTRY);
@@ -73,7 +74,41 @@ public class AI
                         int dis = go[getId(her)][getId(target)];
                         int dis2 = go[getId(cell)][getId(target)];
                         if(dis2 == dis - 1 && isFree(cell, world)){
+                            Hero[] enemies = world.getOppHeroes();
+                            /*
+                            if (enemies.length > 0) {
+                                for (Hero enemy : enemies) {
+                                    Cell enemyCell = enemy.getCurrentCell();
+                                    int enemyX = enemyCell.getRow();
+                                    int enemyY = enemyCell.getColumn();
+                                    if (world.getMap().isInMap(enemyX, enemyY)) {
+                                        if (go[getId(her)][getId(enemy.getCurrentCell())] < hero.getAbilities()[0].getRange()) {
+                                            continue;
+                                        }
+                                    }
+                                }
+                            }
+                            */
+                            Hero targetHero = enemies[0];
+                            Cell enemyCell = targetHero.getCurrentCell();
+                            int ed = 0;
 
+
+                            while (ed < enemies.length) {
+                                targetHero = enemies[ed];
+                                enemyCell = targetHero.getCurrentCell();
+                                if (world.getMap().isInMap(enemyCell.getRow(), enemyCell.getColumn())) break;
+                                ++ed;
+                            }
+                            if (ed != enemies.length) {
+                                int enemyX = enemyCell.getRow();
+                                int enemyY = enemyCell.getColumn();
+                                if (world.getMap().isInMap(enemyX, enemyY)) {
+                                    if (go[getId(her)][getId(targetHero.getCurrentCell())] < hero.getAbilities()[0].getRange()) {
+                                        continue;
+                                    }
+                                }
+                            }
                             world.moveHero(hero, dirs[i]);
                             break;
                         }
@@ -87,12 +122,24 @@ public class AI
         System.out.println("action started");
         Hero[] heroes = world.getMyHeroes();
         Map map = world.getMap();
-        for (Hero hero : heroes)
-        {
-            int row = random.nextInt(map.getRowNum());
-            int column = random.nextInt(map.getColumnNum());
+        Hero[] enemies = world.getOppHeroes();
+        if (enemies.length > 0) {
+            Hero targetHero = enemies[0];
+            Cell enemyCell = targetHero.getCurrentCell();
+            int ed = 0;
 
-            world.castAbility(hero, hero.getAbilities()[random.nextInt(3)], row, column);
+
+            while (ed < enemies.length) {
+                targetHero = enemies[ed];
+                enemyCell = targetHero.getCurrentCell();
+                if (world.getMap().isInMap(enemyCell.getRow(), enemyCell.getColumn())) break;
+                ++ed;
+            }
+
+            if (ed != enemies.length) for (Hero hero : heroes) {
+
+                world.castAbility(hero, hero.getAbilities()[0], targetHero.getCurrentCell());
+            }
         }
     }
 
