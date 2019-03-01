@@ -7,6 +7,7 @@ import java.util.Random;
 public class AI
 {
 
+
     private Random random = new Random();
 
     public void preProcess(World world)
@@ -24,11 +25,13 @@ public class AI
     {
         System.out.println("move started");
         Hero[] heroes = world.getMyHeroes();
-
-        for (Hero hero : heroes)
+        Cell[] targets = world.getMap().getObjectiveZone();
+        for (int heroID = 0; heroID < 4; ++heroID)
         {
-            Direction[] directions = BFS(hero, world);
-            world.moveHero(hero, directions[0]);
+            Hero hero = heroes[heroID];
+            Direction[] directions = BFS(hero, targets[heroID], world);
+            if (directions.length > 0)
+                world.moveHero(hero, directions[0]);
         }
     }
 
@@ -45,7 +48,7 @@ public class AI
         }
     }
 
-        private Direction[] BFS(Hero hero, World world) {
+    private Direction[] BFS(Hero hero, Cell target, World world) {
 
         Cell[] cells = new Cell[world.getMap().getRowNum()*world.getMap().getColumnNum()];
         int[] father = new int[world.getMap().getRowNum()*world.getMap().getColumnNum()];
@@ -61,101 +64,44 @@ public class AI
         cells[0] = hero.getCurrentCell();
         father[0] = -1;
 
-        int p = 0;
-        int q =1;
+        int head = 0;
+        int tail = 1;
+        int[] dx = {0, 0, 1, -1};
+        int[] dy = {-1, 1, 0, 0};
+        Direction[] dirs =  {Direction.LEFT, Direction.RIGHT, Direction.DOWN, Direction.UP};
 
-
-        while (!cells[p].isInObjectiveZone()) {
-            int x = cells[p].getRow();
-            int y = cells[p].getColumn();
-
-            if (world.getMap().isInMap(x,y-1)) {
-                if (!isChecked[x][y-1]) {
-                    Cell cell = world.getMap().getCell(x, y-1);
-                    if (!cell.isWall()) {
-                        isChecked[x][y-1] = true;
-                        cells[q] = cell;
-                        father[q] = p;
-                        directions[q] = Direction.LEFT;
-                        q++;
+        while (head != tail) {
+            int x = cells[head].getRow();
+            int y = cells[head].getColumn();
+            Cell cur = cells[head];
+            if (cur == target) break;
+            for (int d = 0; d < 4; ++d) {
+                int nx = x + dx[d], ny = y + dy[d];
+                if (world.getMap().isInMap(nx, ny)) {
+                    if (!isChecked[nx][ny]) {
+                        Cell cell = world.getMap().getCell(nx, ny);
+                        if (!cell.isWall()) {
+                            isChecked[nx][ny] = true;
+                            cells[tail] = cell;
+                            father[tail] = head;
+                            directions[tail] = dirs[d];
+                            tail++;
+                        }
                     }
                 }
             }
-
-            if (world.getMap().isInMap(x,y+1)) {
-                if (!isChecked[x][y+1]) {
-                    Cell cell = world.getMap().getCell(x, y+1);
-                    if (!cell.isWall()) {
-                        isChecked[x][y+1] = true;
-                        cells[q] = cell;
-                        father[q] = p;
-                        directions[q] = Direction.RIGHT;
-                        q++;
-                    }
-                }
-            }
-
-            if (world.getMap().isInMap(x+1,y)) {
-                if (!isChecked[x+1][y]) {
-                    Cell cell = world.getMap().getCell(x+1, y);
-                    if (!cell.isWall()) {
-                        isChecked[x+1][y] = true;
-                        cells[q] = cell;
-                        father[q] = p;
-                        directions[q] = Direction.DOWN;
-                        q++;
-                    }
-                }
-            }
-
-            if (world.getMap().isInMap(x-1,y)) {
-                if (!isChecked[x-1][y]) {
-                    Cell cell = world.getMap().getCell(x-1, y);
-                    if (!cell.isWall()) {
-                        isChecked[x-1][y] = true;
-                        cells[q] = cell;
-                        father[q] = p;
-                        directions[q] = Direction.UP;
-                        q++;
-                    }
-                }
-            }
-            p++;
+            head++;
         }
 
-        Direction[] list = new Direction[p];
+        Direction[] list = new Direction[tail + 1];
         int size = 0;
-//        int[][] map = new int[world.getMap().getRowNum()][world.getMap().getColumnNum()];
-//        System.out.println("first Map: ");
-//        for (int i = 0; i < world.getMap().getRowNum(); i++) {
-//            for (int j = 0; j < world.getMap().getColumnNum(); j++) {
-//                if (world.getMap().getCell(i, j).isWall()) {
-//                    map[i][j] = 3;
-//                } else if(world.getMap().getCell(i,j).isInObjectiveZone()) {
-//                    map[i][j] = 2;
-//                } else {
-//                    map[i][j] = 0;
-//                }
-//                System.out.print(map[i][j]);
-//            }
-//            System.out.println();
-//        }
 
-        while (father[p] != -1) {
-//            map[cells[p].getRow()][cells[p].getColumn()] = 1;
-            list[size] = directions[p];
-            p = father[p];
+        while (father[head] != -1) {
+            list[size] = directions[head];
+            head = father[head];
             size++;
         }
 
-//        System.out.println("map: ");
-//        for (int i = 0; i < world.getMap().getRowNum(); i++) {
-//            System.out.print((i+1) + ": ");
-//            for (int j = 0; j < world.getMap().getColumnNum(); j++) {
-//                System.out.print(map[i][j]);
-//            }
-//            System.out.println();
-//        }
 
         Direction[] result = new Direction[size];
         for (int i = 0; i < size; i++) {
