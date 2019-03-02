@@ -2,34 +2,44 @@ package client;
 
 import client.model.*;
 
+import java.util.ArrayList;
 import java.util.Random;
 
 public class AI
 {
-
 
     private Random random = new Random();
     public int[][] go;
     int[] dx = {0, 0, 1, -1};
     int[] dy = {-1, 1, 0, 0};
     public static int m, n;
+    public static int inf = (int) 1e9;
     Direction[] dirs =  {Direction.LEFT, Direction.RIGHT, Direction.DOWN, Direction.UP};
+    static Cell[] targets = new Cell[4];
+    static Cell[] ObjectiveZone = new Cell[4];
+    boolean targetOk = false;
     public void preProcess(World world)
     {
+        targets = new Cell[4];
         m = world.getMap().getColumnNum();
         n = world.getMap().getRowNum();
         int tot = n * m;
+        boolean[] mark = new boolean[tot];
         go = new int[tot + 10][tot + 10];
         int ans = 0;
+
         for(int i=0; i<tot; i++){
             int row = i/m;
             int col = i%m;
             BFS(row, col, world);
+            Cell cell = world.getMap().getCell(row, col);
             System.out.println("haha");
             ans++;
             System.out.println(ans);
         }
         System.out.println(tot);
+
+
 
     }
 
@@ -56,15 +66,73 @@ public class AI
     }
     public void moveTurn(World world)
     {
+        if(!targetOk){
+            targets = new Cell[4];
+            ObjectiveZone = new Cell[4];
+            targetOk = true;
+            int tot = n * m;
+            int min_x = inf, min_y = inf;
+            int max_x = -inf, max_y = -inf;
+            for(int i=0; i<tot; i++){
+                int row = i/m;
+                int col = i%m;
+                Cell cell = world.getMap().getCell(row, col);
+                if(cell.isInObjectiveZone()){
+                    min_x = Math.min(min_x, row);
+                    min_y = Math.min(min_y, col);
+                    max_x = Math.max(max_x, row);
+                    max_y = Math.max(max_y, col);
+                }
+            }
+            ObjectiveZone[0] = world.getMap().getCell(min_x, (min_y + max_y)/2);
+            ObjectiveZone[1] = world.getMap().getCell(max_x, (min_y + max_y)/2);
+
+            ObjectiveZone[2] = world.getMap().getCell((min_x + max_x)/2, max_y);
+            ObjectiveZone[3] = world.getMap().getCell((min_x + max_x)/2, min_y);
+            System.out.println("*********************************************************");
+            System.out.println(min_x);
+            System.out.println(min_y);
+            System.out.println(max_x);
+            System.out.println(max_y);
+
+            boolean[] mark = new boolean[tot];
+            Hero[] heroes = world.getMyHeroes();
+            for(int i=0; i<tot; i++)
+                mark[i] = false;
+            for (int heroID = 0; heroID < 4; ++heroID)
+            {
+                Hero hero = heroes[heroID];
+                int best = inf;
+                for(int i=0; i<tot; i++){
+                    int row = i/m;
+                    int col = i%m;
+                    int distance = go[getId(hero.getCurrentCell())][i];
+                    if(distance < best && mark[i] == false && world.getMap().getCell(row, col).isInObjectiveZone()){
+                        best = distance;
+                        mark[i] = true;
+                        targets[heroID] = world.getMap().getCell(row, col);
+                    }
+                }
+            }
+            for(int i=0; i<4; i++){
+                System.out.println(targets[i].getRow());
+                System.out.println(targets[i].getColumn());
+            }
+        }
         System.out.println("move started");
         Hero[] heroes = world.getMyHeroes();
-        Cell[] targets = world.getMap().getObjectiveZone();
+        ArrayList<Integer> remaining = new ArrayList<>();
         for (int heroID = 0; heroID < 4; ++heroID)
         {
             Hero hero = heroes[heroID];
             Cell her = hero.getCurrentCell();
+            if(her.isInObjectiveZone() == true) {
+                remaining.add(heroID);
+                continue;
+            }
+
             Cell target = targets[heroID];
-            if (her == target) continue;
+
             for(int i=0; i<4; i++){
                 int nx = her.getRow() + dx[i];
                 int ny = her.getColumn() + dy[i];
@@ -74,41 +142,33 @@ public class AI
                         int dis = go[getId(her)][getId(target)];
                         int dis2 = go[getId(cell)][getId(target)];
                         if(dis2 == dis - 1 && isFree(cell, world)){
-                            Hero[] enemies = world.getOppHeroes();
-                            /*
-                            if (enemies.length > 0) {
-                                for (Hero enemy : enemies) {
-                                    Cell enemyCell = enemy.getCurrentCell();
-                                    int enemyX = enemyCell.getRow();
-                                    int enemyY = enemyCell.getColumn();
-                                    if (world.getMap().isInMap(enemyX, enemyY)) {
-                                        if (go[getId(her)][getId(enemy.getCurrentCell())] < hero.getAbilities()[0].getRange()) {
-                                            continue;
-                                        }
-                                    }
-                                }
-                            }
-                            */
-                            Hero targetHero = enemies[0];
-                            Cell enemyCell = targetHero.getCurrentCell();
-                            int ed = 0;
+
+                            world.moveHero(hero, dirs[i]);
+                            System.out.println("moveeeee" + Integer.toString(her.getRow()) + " " + Integer.toString(her.getColumn()));
 
 
-                            while (ed < enemies.length) {
-                                targetHero = enemies[ed];
-                                enemyCell = targetHero.getCurrentCell();
-                                if (world.getMap().isInMap(enemyCell.getRow(), enemyCell.getColumn())) break;
-                                ++ed;
-                            }
-                            if (ed != enemies.length) {
-                                int enemyX = enemyCell.getRow();
-                                int enemyY = enemyCell.getColumn();
-                                if (world.getMap().isInMap(enemyX, enemyY)) {
-                                    if (go[getId(her)][getId(targetHero.getCurrentCell())] < hero.getAbilities()[0].getRange()) {
-                                        continue;
-                                    }
-                                }
-                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        System.out.println(remaining.size());
+        System.out.println("wtttttttf");
+        for (int heroID : remaining) {
+            Hero hero = heroes[heroID];
+            Cell target = ObjectiveZone[heroID];
+            Cell her = hero.getCurrentCell();
+            for(int i=0; i<4; i++){
+                int nx = her.getRow() + dx[i];
+                int ny = her.getColumn() + dy[i];
+                if (world.getMap().isInMap(nx, ny)) {
+                    Cell cell = world.getMap().getCell(nx, ny);
+                    if (!cell.isWall()) {
+                        int dis = go[getId(her)][getId(target)];
+                        int dis2 = go[getId(cell)][getId(target)];
+                        if(dis2 == dis - 1 && isFree(cell, world)){
+
                             world.moveHero(hero, dirs[i]);
                             break;
                         }
@@ -124,21 +184,35 @@ public class AI
         Map map = world.getMap();
         Hero[] enemies = world.getOppHeroes();
         if (enemies.length > 0) {
-            Hero targetHero = enemies[0];
-            Cell enemyCell = targetHero.getCurrentCell();
-            int ed = 0;
 
+            int curAP = world.getAP();
+            for (int heroId = 0; heroId < 4; heroId++) {
+                Hero hero = heroes[heroId];
 
-            while (ed < enemies.length) {
-                targetHero = enemies[ed];
-                enemyCell = targetHero.getCurrentCell();
-                if (world.getMap().isInMap(enemyCell.getRow(), enemyCell.getColumn())) break;
-                ++ed;
-            }
+                Cell heroCell = hero.getCurrentCell();
+                for (Hero enemy : enemies) {
+                    Cell enemyCell = enemy.getCurrentCell();
+                    if (world.getMap().isInMap(enemyCell.getRow(), enemyCell.getColumn()) && world.getMap().isInMap(heroCell.getRow(), heroCell.getColumn())) {
+                        if (go[getId(hero.getCurrentCell())][getId(enemy.getCurrentCell())] < hero.getAbilities()[0].getRange()) {
+                            int ability = 0;
+                            if (hero.getAbilities()[2].isReady() && hero.getAbilities()[0].getAPCost()*(3-heroId) + hero.getAbilities()[2].getAPCost() <= curAP) {
+                                ability = 2;
+                            } else {
+                                ability = 0;
+                            }
+                            world.castAbility(hero, hero.getAbilities()[ability], enemy.getCurrentCell());
+                            curAP -= hero.getAbilities()[ability].getAPCost();
+                            break;
+                        }
+                    }
 
-            if (ed != enemies.length) for (Hero hero : heroes) {
-
-                world.castAbility(hero, hero.getAbilities()[0], targetHero.getCurrentCell());
+                }
+                /*
+                System.out.println(hero.getAbilities());
+                for (Ability ability : hero.getAbilities()) {
+                    System.out.println(ability.getName());
+                }
+                */
             }
         }
     }
